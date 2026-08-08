@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Serverless Framework
+.serverless/
+
+# LocalStack
+.localstack/
+
+# GotoSocial local storage
+.gts-storage/
+
+# Environment Variables & Sensitive Credentials
+.env
+.env.local
+.gts-token
+.prod-token
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

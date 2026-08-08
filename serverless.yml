@@ -1,0 +1,81 @@
+service: bathtub-robot-services
+useDotenv: true
+
+plugins:
+  - serverless-localstack
+
+custom:
+  localstack:
+    stages:
+      - local
+    host: http://localhost:4566
+    autostart: false
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+          Resource:
+            - !GetAtt StateTable.Arn
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            - !Ref NewPostTopic
+
+functions:
+  poller:
+    handler: services/poller/index.handler
+    events:
+      - schedule:
+          rate: rate(15 minutes)
+          enabled: ${env:POLLER_ENABLED, 'true'}
+    environment:
+      JSON_FEED_URL: ${env:JSON_FEED_URL}
+      STATE_TABLE_NAME: !Ref StateTable
+      NOTIFY_TOPIC_ARN: !Ref NewPostTopic
+
+  fediverse-notifier:
+    handler: services/fediverse-notifier/index.handler
+    events:
+      - sns:
+          arn: !Ref NewPostTopic
+          topicName: ${self:service}-${opt:stage, 'dev'}-new-posts
+    environment:
+      FEDIVERSE_INSTANCE_URL: ${env:FEDIVERSE_INSTANCE_URL}
+      FEDIVERSE_ACCESS_TOKEN: ${env:FEDIVERSE_ACCESS_TOKEN}
+
+resources:
+  Resources:
+    StateTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${opt:stage, 'dev'}-poll-history
+        AttributeDefinitions:
+          - AttributeName: url
+            AttributeType: S
+        KeySchema:
+          - AttributeName: url
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    NewPostTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${opt:stage, 'dev'}-new-posts
+
+    EmailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref NewPostTopic
+        Endpoint: ${env:NOTIFICATION_EMAIL}
+        Protocol: email

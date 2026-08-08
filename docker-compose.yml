@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: bathtub-robot-localstack
+    image: localstack/localstack:3.5
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - "./.localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  gts-db:
+    container_name: gts-db
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=gotosocial
+      - POSTGRES_PASSWORD=databasepassword
+      - POSTGRES_DB=gotosocial
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gotosocial"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  gotosocial:
+    container_name: gotosocial
+    image: superseriousbusiness/gotosocial:latest
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - GTS_HOST=localhost:8080
+      - GTS_PORT=8080
+      - GTS_DB_TYPE=postgres
+      - GTS_DB_ADDRESS=gts-db
+      - GTS_DB_USER=gotosocial
+      - GTS_DB_PASSWORD=databasepassword
+      - GTS_DB_DATABASE=gotosocial
+      - GTS_STORAGE_BACKEND=local
+      - GTS_STORAGE_LOCAL_USER_IMAGE_POLICY=default
+      - GTS_ACCOUNTS_REGISTRATION_OPEN=true
+      - GTS_ACCOUNTS_APPROVAL_REQUIRED=false
+      - GTS_LETSENCRYPT_ENABLED=false
+      - GTS_PROTOCOL=http
+    depends_on:
+      gts-db:
+        condition: service_healthy
+    volumes:
+      - "./.gts-storage:/gotosocial/storage"
