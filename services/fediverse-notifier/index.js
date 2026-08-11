@@ -50,10 +50,10 @@ export function formatTags(tags) {
 export function formatStatusText(title, cleanSummary, url, hashtags) {
   let statusText = '';
   if (title) {
-    statusText += `${title}\n\n`;
+    statusText += `${title}: `;
   }
   if (cleanSummary) {
-    statusText += `${cleanSummary}\n\n`;
+    statusText += `${cleanSummary} `;
   }
   statusText += `${url}`;
   if (hashtags) {

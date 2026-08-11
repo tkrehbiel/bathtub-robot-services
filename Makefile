@@ -1,4 +1,4 @@
-STAGE ?= dev
+STAGE ?= prod
 GTS_USER ?= admin
 GTS_EMAIL ?= admin@example.com
 GTS_PASSWORD ?= AdminPassword123
