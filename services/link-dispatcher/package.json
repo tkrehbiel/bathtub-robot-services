@@ -1,0 +1,14 @@
+{
+  "name": "link-dispatcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test index.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.621.0",
+    "dotenv": "^16.4.5"
+  }
+}

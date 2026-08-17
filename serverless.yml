@@ -15,6 +15,7 @@ provider:
   name: aws
   runtime: nodejs20.x
   region: us-east-1
+  versionFunctions: false
   iam:
     role:
       statements:
@@ -31,6 +32,8 @@ provider:
             - sns:Publish
           Resource:
             - !Ref NewPostTopic
+            - !Ref ExternalMentionTopic
+            - !Ref SuccessMentionTopic
         - Effect: Allow
           Action:
             - s3:PutObject
@@ -61,6 +64,42 @@ functions:
       FEDIVERSE_INSTANCE_URL: ${env:FEDIVERSE_INSTANCE_URL}
       FEDIVERSE_ACCESS_TOKEN: ${env:FEDIVERSE_ACCESS_TOKEN}
 
+  link-dispatcher:
+    handler: services/link-dispatcher/index.handler
+    events:
+      - sns:
+          arn: !Ref NewPostTopic
+          topicName: ${self:service}-${opt:stage, 'dev'}-new-posts
+    environment:
+      EXTERNAL_MENTION_TOPIC_ARN: !Ref ExternalMentionTopic
+      USER_AGENT: ${env:USER_AGENT, 'BathtubRobot/1.0 (Link Dispatcher; +https://github.com/tkrehbiel/bathtub-robot-services)'}
+
+  webmention-sender:
+    handler: bootstrap
+    runtime: provided.al2023
+    package:
+      individually: true
+      artifact: services/webmention-sender/webmention-sender.zip
+    environment:
+      SUCCESS_TOPIC_ARN: !Ref SuccessMentionTopic
+    events:
+      - sns:
+          arn: !Ref ExternalMentionTopic
+          topicName: ${self:service}-${opt:stage, 'dev'}-external-mentions
+
+  pingback-sender:
+    handler: bootstrap
+    runtime: provided.al2023
+    package:
+      individually: true
+      artifact: services/pingback-sender/pingback-sender.zip
+    environment:
+      SUCCESS_TOPIC_ARN: !Ref SuccessMentionTopic
+    events:
+      - sns:
+          arn: !Ref ExternalMentionTopic
+          topicName: ${self:service}-${opt:stage, 'dev'}-external-mentions
+
   blogroll-aggregator:
     handler: services/blogroll-aggregator/handler.handler
     runtime: python3.11
@@ -76,7 +115,23 @@ functions:
           enabled: ${env:POLLER_ENABLED, 'true'}
 
 resources:
+  Conditions:
+    IsProduction: !Equals [ "${opt:stage, 'dev'}", "prod" ]
+
   Resources:
+    SuccessMentionTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${opt:stage, 'dev'}-successful-mentions
+
+    SuccessEmailSubscription:
+      Type: AWS::SNS::Subscription
+      Condition: IsProduction
+      Properties:
+        TopicArn: !Ref SuccessMentionTopic
+        Endpoint: ${env:NOTIFICATION_EMAIL}
+        Protocol: email
+
     StateTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -93,6 +148,11 @@ resources:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: ${self:service}-${opt:stage, 'dev'}-new-posts
+
+    ExternalMentionTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${opt:stage, 'dev'}-external-mentions
 
     EmailSubscription:
       Type: AWS::SNS::Subscription

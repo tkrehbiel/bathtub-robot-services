@@ -36,6 +36,6 @@ test('Notifier - formatStatusText formats status correctly', () => {
   const url = 'https://example.com/my-post';
   const hashtags = '#Gaming #EverQuestII';
 
-  const expected = 'Blog Post Title\n\nThis is a brief summary of the blog post.\n\nhttps://example.com/my-post\n\n#Gaming #EverQuestII';
+  const expected = 'Blog Post Title: This is a brief summary of the blog post. https://example.com/my-post\n\n#Gaming #EverQuestII';
   assert.strictEqual(formatStatusText(title, summary, url, hashtags), expected);
 });

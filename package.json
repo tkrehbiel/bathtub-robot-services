@@ -12,6 +12,7 @@
     "deploy:aws": "serverless deploy"
   },
   "devDependencies": {
+    "@aws-sdk/client-sqs": "^3.1111.0",
     "serverless": "^3.38.0",
     "serverless-localstack": "^1.1.2"
   }

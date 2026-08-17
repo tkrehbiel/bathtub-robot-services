@@ -5,7 +5,7 @@ GTS_USER ?= admin
 GTS_EMAIL ?= admin@example.com
 GTS_PASSWORD ?= AdminPassword123
 
-.PHONY: up down setup-gts deploy-local deploy-aws logs-poller logs-notifier test-local test-aggregator show-blogroll show-cache clean
+.PHONY: up down setup-gts deploy-local deploy-aws logs-poller logs-notifier test-local test-aggregator show-blogroll show-cache clean test-link-dispatcher logs-webmention-sender logs-pingback-sender build-go test-go
 
 up:
 	docker compose up -d
@@ -32,7 +32,15 @@ setup-gts:
 	@until [ $$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/) -eq 200 ]; do sleep 1; done
 	@echo "GotoSocial is ready with authorized token!"
 
-deploy-local:
+build-go:
+	cd services/webmention-sender && rm -f bootstrap webmention-sender.zip && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bootstrap main.go && zip webmention-sender.zip bootstrap && rm bootstrap
+	cd services/pingback-sender && rm -f bootstrap pingback-sender.zip && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bootstrap main.go && zip pingback-sender.zip bootstrap && rm bootstrap
+
+test-go:
+	cd services/webmention-sender && go test -v ./...
+	cd services/pingback-sender && go test -v ./...
+
+deploy-local: build-go
 	# Local stack deployment using the container DNS for gotosocial
 	FEDIVERSE_INSTANCE_URL=http://gotosocial:8080 \
 	FEDIVERSE_ACCESS_TOKEN=$$(cat .gts-token 2>/dev/null || echo "mock-token") \
@@ -42,7 +50,7 @@ deploy-local:
 get-prod-token:
 	node scripts/get-prod-token.js
 
-deploy-aws:
+deploy-aws: build-go
 	npm run deploy:aws -- --stage $(STAGE)
 
 prepopulate-aws:
@@ -51,6 +59,15 @@ prepopulate-aws:
 test-local:
 	# Trigger the poller manually in LocalStack using standard aws CLI
 	aws --endpoint-url=http://localhost:4566 lambda invoke --function-name bathtub-robot-services-local-poller /dev/stdout
+
+test-link-dispatcher:
+	node scripts/test-link-dispatcher-integration.js
+
+logs-webmention-sender:
+	aws --endpoint-url=http://localhost:4566 logs tail /aws/lambda/bathtub-robot-services-local-webmention-sender
+
+logs-pingback-sender:
+	aws --endpoint-url=http://localhost:4566 logs tail /aws/lambda/bathtub-robot-services-local-pingback-sender
 
 logs-poller:
 	aws --endpoint-url=http://localhost:4566 logs tail /aws/lambda/bathtub-robot-services-local-poller
@@ -77,3 +94,5 @@ show-cache:
 clean:
 	docker compose down -v
 	rm -rf .localstack .gts-storage .gts-token
+	rm -f services/webmention-sender/bootstrap services/webmention-sender/webmention-sender.zip
+	rm -f services/pingback-sender/bootstrap services/pingback-sender/pingback-sender.zip
