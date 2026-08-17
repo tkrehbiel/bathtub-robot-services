@@ -31,6 +31,13 @@ provider:
             - sns:Publish
           Resource:
             - !Ref NewPostTopic
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:PutObjectAcl
+          Resource:
+            - !Sub arn:aws:s3:::${env:OUTPUT_BUCKET_NAME, 'blogroll-aggregator-bucket'}/*
+            - !Sub arn:aws:s3:::${env:OUTPUT_BUCKET_NAME, 'blogroll-aggregator-bucket'}
 
 functions:
   poller:
@@ -53,6 +60,20 @@ functions:
     environment:
       FEDIVERSE_INSTANCE_URL: ${env:FEDIVERSE_INSTANCE_URL}
       FEDIVERSE_ACCESS_TOKEN: ${env:FEDIVERSE_ACCESS_TOKEN}
+
+  blogroll-aggregator:
+    handler: services/blogroll-aggregator/handler.handler
+    runtime: python3.11
+    timeout: 60
+    environment:
+      OPML_URL: ${env:OPML_URL, 'https://www.inoreader.com/reader/subscriptions/export/user/1006091082/label/Blaugust%202026'}
+      OUTPUT_BUCKET_NAME: ${env:OUTPUT_BUCKET_NAME, 'blogroll-aggregator-bucket'}
+      OUTPUT_FILE_KEY: ${env:OUTPUT_FILE_KEY, 'blogroll.json'}
+      USER_AGENT: ${env:USER_AGENT, 'BathtubRobot/1.0 (OPML Blogroll Aggregator; +https://github.com/tkrehbiel/bathtub-robot-services)'}
+    events:
+      - schedule:
+          rate: rate(30 minutes)
+          enabled: ${env:POLLER_ENABLED, 'true'}
 
 resources:
   Resources:
@@ -79,3 +100,36 @@ resources:
         TopicArn: !Ref NewPostTopic
         Endpoint: ${env:NOTIFICATION_EMAIL}
         Protocol: email
+
+    BlogrollBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${env:OUTPUT_BUCKET_NAME, 'blogroll-aggregator-bucket'}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders:
+                - '*'
+              AllowedOrigins:
+                - '*'
+              AllowedMethods:
+                - GET
+              MaxAge: 3000
+
+    BlogrollBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref BlogrollBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource: !Sub arn:aws:s3:::${BlogrollBucket}/*

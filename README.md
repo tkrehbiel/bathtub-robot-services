@@ -1,6 +1,14 @@
 # Bathtub Robot Services Monorepo
 
-This repository is a Serverless monorepo containing Lambda services that automate polling your blog's JSON feed and publishing new post notifications to a target Fediverse instance (e.g., GotoSocial or Mastodon) and an AWS SNS email subscription.
+This repository is a Serverless monorepo containing Lambda services that compliment a static blog.
+
+## Blogroll Aggregator
+
+The blogroll-aggregator service takes an OPML url, fetches each of the blog's feeds, and writes an output json feed containing the latest post from each blog.
+
+## Poller and fediverse-notifier
+
+Poller and fediverse-notifier automate polling your blog's JSON feed and publishing new post notifications to a target Fediverse instance (e.g., GotoSocial or Mastodon) and an AWS SNS email subscription.
 
 The project is built with **Node.js 22 (ES Modules)** and leverages the **Serverless Framework** for deployment. It includes a complete local integration testing environment composed of **LocalStack**, **PostgreSQL**, and **GotoSocial** running in Docker.
 

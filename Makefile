@@ -1,9 +1,11 @@
+export AWS_PAGER :=
+
 STAGE ?= prod
 GTS_USER ?= admin
 GTS_EMAIL ?= admin@example.com
 GTS_PASSWORD ?= AdminPassword123
 
-.PHONY: up down setup-gts deploy-local deploy-aws logs-poller logs-notifier test-local clean
+.PHONY: up down setup-gts deploy-local deploy-aws logs-poller logs-notifier test-local test-aggregator show-blogroll show-cache clean
 
 up:
 	docker compose up -d
@@ -59,6 +61,18 @@ logs-notifier:
 clear-posts:
 	@echo "Clearing local DynamoDB poll history..."
 	node scripts/clear-history.js
+
+test-aggregator:
+	# Trigger the blogroll-aggregator manually in LocalStack
+	aws --endpoint-url=http://localhost:4566 lambda invoke --function-name bathtub-robot-services-local-blogroll-aggregator /dev/stdout
+
+show-blogroll:
+	# Print contents of public S3 blogroll.json from LocalStack
+	aws --endpoint-url=http://localhost:4566 s3 cp s3://$$([ -f .env.local ] && grep OUTPUT_BUCKET_NAME .env.local | cut -d= -f2 || echo 'local-blogroll-bucket')/$$([ -f .env.local ] && grep OUTPUT_FILE_KEY .env.local | cut -d= -f2 || echo 'blogroll.json') -
+
+show-cache:
+	# Print contents of S3 cache_state.json from LocalStack
+	aws --endpoint-url=http://localhost:4566 s3 cp s3://$$([ -f .env.local ] && grep OUTPUT_BUCKET_NAME .env.local | cut -d= -f2 || echo 'local-blogroll-bucket')/cache_state.json -
 
 clean:
 	docker compose down -v

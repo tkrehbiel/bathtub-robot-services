@@ -22,3 +22,17 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Local test output
+services/blogroll-aggregator/test_output.json
+services/blogroll-aggregator/test_cache_state.json
